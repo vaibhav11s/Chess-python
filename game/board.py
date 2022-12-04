@@ -64,7 +64,7 @@ class Board:
         if dest not in legalMoves:
             return False, False
         if isinstance(srcPiece, King):
-            if dest != src.move(-1, 0) and dest != src.move(1, 0):
+            if dest == src.move(-2, 0) or dest == src.move(2, 0):
                 if dest == src.move(2, 0):
                     self.setPiece(srcPiece, dest)
                     self.removePiece(src)
