@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from .utils import Pos, Color, UNICODE_PIECE_SYMBOLS as UP
-from .pieces import Pawn, Knight, Bishop, Rook, Queen, King
+from .pieces import Pawn, Knight, Bishop, Rook, Queen, King, PossibleMoves
 
 if TYPE_CHECKING:
     from .pieces import Piece
@@ -222,9 +222,7 @@ class Board:
         # check if self getting into check
         for row in self.board:
             for piece in row:
-                if piece == None:
-                    continue
-                if piece.color == lastMove:
+                if piece == None or piece.color == lastMove:
                     continue
                 legalMoves, _ = piece.possibleMoves(self, depth=0)
                 if selfKing.pos in legalMoves:
@@ -234,12 +232,27 @@ class Board:
         # check if opp getting into check
         for row in self.board:
             for piece in row:
-                if piece == None:
-                    continue
-                if piece.color != lastMove:
+                if piece == None or piece.color != lastMove:
                     continue
                 legalMoves, _ = piece.possibleMoves(self, depth=0)
                 if oppKing.pos in legalMoves:
                     self.checked = oppKing.color
                     return
         self.checked = None
+
+    def getPlayerPieces(self, color: Color) -> "list[Piece]":
+        pieces: "list[Piece]" = []
+        for row in self.board:
+            for piece in row:
+                if piece != None and piece.color == color:
+                    pieces.append(piece)
+        return pieces
+
+    def getAllPossibleMoves(self, color: Color) -> "list[PossibleMoves]":
+        pieces = self.getPlayerPieces(color)
+        possibleMoves: "list[PossibleMoves]" = []
+        for piece in pieces:
+            legalMoves, _ = piece.possibleMoves(self)
+            if len(legalMoves) > 0:
+                possibleMoves.append(PossibleMoves(piece, legalMoves))
+        return possibleMoves

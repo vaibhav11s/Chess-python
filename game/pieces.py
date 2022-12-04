@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from copy import deepcopy
 from .utils import Pos, Color
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from .board import Board
@@ -244,3 +245,9 @@ class King(Piece):
         checkQueenSide()
 
         return moves
+
+
+@dataclass
+class PossibleMoves:
+    piece: Piece
+    to: "list[Pos]"

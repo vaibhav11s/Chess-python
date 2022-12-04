@@ -5,9 +5,16 @@
 #### In terminal
 
 ```
+against bot
 $ make play
 or
 $ python terminal.py
+
+against player
+$ make play-player
+or
+$ python terminal.py -p
+
 ```
 
 #### GUI

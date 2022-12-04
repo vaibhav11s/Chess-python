@@ -1,4 +1,5 @@
 from enum import Enum
+from dataclasses import dataclass
 
 UNICODE_PIECE_SYMBOLS = {
     "bR": "♖",
@@ -21,22 +22,13 @@ class Color(Enum):
     WHITE = 1
 
 
+@dataclass
 class Pos:
-    def __init__(self, x: int, y: int) -> None:
-        self.X = x
-        self.Y = y
+    X: int
+    Y: int
 
     def move(self, x, y) -> "Pos":
         return Pos(self.X + x, self.Y + y)
-
-    def __repr__(self) -> str:
-        return "(" + str(self.X) + "," + str(self.Y) + ")"
-
-    def __eq__(self, other: "Pos"):
-        if not isinstance(other, Pos):
-            return False
-        if self.X == other.X and self.Y == other.Y:
-            return True
 
 
 CharToInt = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}

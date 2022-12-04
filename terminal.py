@@ -1,5 +1,12 @@
 from game.board import Board
-from game.utils import posFromEncoding, endcodingFromPos, UNICODE_PIECE_SYMBOLS as UP
+from game.utils import (
+    posFromEncoding,
+    endcodingFromPos,
+    UNICODE_PIECE_SYMBOLS as UP,
+    Color,
+)
+from bots.randomBot import RandomBot
+import sys
 
 HELP_MESSAGE = """Commands to use game
   > [player color tag] [srcPos] [destPos]
@@ -25,6 +32,9 @@ class Logs:
     def lgs(self):
         return self.logs
 
+
+bot = RandomBot()
+withBot = True
 
 board = Board()
 turn = "w"
@@ -109,6 +119,14 @@ def loop():
         print("\033[2J" + "\033[H", end="")
         print(mergeMessages(str(board), logs.lgs()))
         print(("White" if turn == "w" else "Black") + "'s turn\n> ", end="")
+        if withBot and turn == "b":
+            print("Bot thinking...")
+            frm, to = bot.giveMove(board, Color.BLACK)
+            frm, to = endcodingFromPos(frm), endcodingFromPos(to)
+            inp = "b " + frm + " " + to
+            log("\n" + inp)
+            makeMove(inp.split(" "))
+            continue
         inp = input()
         log("\n> " + inp)
         inps = inp.split(" ")
@@ -146,4 +164,7 @@ def main():
 
 
 if __name__ == "__main__":
+    for arg in sys.argv:
+        if arg == "-p":
+            withBot = False
     main()
