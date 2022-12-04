@@ -51,7 +51,7 @@ def posFromEncoding(pos: str) -> "Pos|None":
         return None
     j = None
     try:
-        j = int(pos[1]) - 1
+        j = 8 - int(pos[1])
     except:
         return None
     if j > 7 or j < 0:
@@ -62,4 +62,4 @@ def posFromEncoding(pos: str) -> "Pos|None":
 def endcodingFromPos(pos: Pos) -> "str":
     if pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7:
         return ""
-    return IntToChar[pos.X] + str(pos.Y + 1)
+    return IntToChar[pos.X] + str(8 - pos.Y)

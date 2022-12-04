@@ -150,7 +150,7 @@ class Board:
         repr += ("\n  ║" + "─" * 39 + "║\n").join(
             [
                 (
-                    str(i + 1)
+                    str(8 - i)
                     + " "
                     + "║ "
                     + "  | ".join(
