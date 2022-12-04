@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-
+from copy import deepcopy
 from .utils import Pos, Color
 
 if TYPE_CHECKING:
@@ -14,21 +14,33 @@ class Piece:
     def __repr__(self) -> str:
         return "xX"
 
-    def possibleMoves(self, board: "Board") -> "list[Pos]":
+    def possibleMoves(self, board: "Board", depth=1) -> "tuple[list[Pos],list[Pos]]":
+        possMoves = self.childPossibleMoves(board)
+        if depth == 0:
+            return possMoves, []
+        illegalMoves = []
+        legalMoves = []
+        for move in possMoves:
+            newBoard = deepcopy(board)
+            newBoard.overrideMove(self.pos, move)
+            if newBoard.checked == self.color:
+                legalMoves.append(move)
+            else:
+                illegalMoves.append(move)
+        return illegalMoves, legalMoves
+
+    def childPossibleMoves(self, board: "Board") -> "list[Pos]":
         return []
 
     def moveTo(self, pos: Pos):
-        # valid = board.movePieceFromTo(self.pos, pos)
-        # if valid:
         self.pos = pos
-        # return valid
 
 
 class Pawn(Piece):
     def __repr__(self) -> str:
         return "bP" if self.color == Color.BLACK else "wP"
 
-    def possibleMoves(self, board: "Board"):
+    def childPossibleMoves(self, board: "Board"):
         dir = board.getDirection(self.color)
         moves: "list[Pos]" = []
 
@@ -65,7 +77,7 @@ class Knight(Piece):
     def __repr__(self) -> str:
         return "bN" if self.color == Color.BLACK else "wN"
 
-    def possibleMoves(self, board: "Board"):
+    def childPossibleMoves(self, board: "Board"):
         moves: "list[Pos]" = []
         for mv in KnightsMoves:
             pos = self.pos.move(mv[0], mv[1])
@@ -86,7 +98,7 @@ class Bishop(Piece):
     def __repr__(self) -> str:
         return "bB" if self.color == Color.BLACK else "wB"
 
-    def possibleMoves(self, board: "Board"):
+    def childPossibleMoves(self, board: "Board"):
         moves: "list[Pos]" = []
         for dir in BishopDirection:
             for i in range(1, 8):
@@ -110,10 +122,18 @@ RookDirections = [
 
 
 class Rook(Piece):
+    def __init__(self, x: int, y: int, color: Color) -> None:
+        super().__init__(x, y, color)
+        self.hasMoved = False
+
     def __repr__(self) -> str:
         return "bR" if self.color == Color.BLACK else "wR"
 
-    def possibleMoves(self, board: "Board"):
+    def moveTo(self, pos: Pos):
+        self.hasMoved = True
+        return super().moveTo(pos)
+
+    def childPossibleMoves(self, board: "Board"):
         moves: "list[Pos]" = []
         for dir in RookDirections:
             for i in range(1, 8):
@@ -132,7 +152,7 @@ class Queen(Piece):
     def __repr__(self) -> str:
         return "bQ" if self.color == Color.BLACK else "wQ"
 
-    def possibleMoves(self, board: "Board"):
+    def childPossibleMoves(self, board: "Board"):
         moves: "list[Pos]" = []
         for dir in RookDirections + BishopDirection:
             for i in range(1, 8):
@@ -148,10 +168,18 @@ class Queen(Piece):
 
 
 class King(Piece):
+    def __init__(self, x: int, y: int, color: Color) -> None:
+        super().__init__(x, y, color)
+        self.hasMoved = False
+
     def __repr__(self) -> str:
         return "bK" if self.color == Color.BLACK else "wK"
 
-    def possibleMoves(self, board: "Board"):
+    def moveTo(self, pos: Pos):
+        self.hasMoved = True
+        return super().moveTo(pos)
+
+    def childPossibleMoves(self, board: "Board"):
         moves: "list[Pos]" = []
         for dir in RookDirections + BishopDirection:
             posN = self.pos.move(dir[0], dir[1])
@@ -159,4 +187,60 @@ class King(Piece):
                 moves.append(posN)
             elif board.canKill(posN, self.color):
                 moves.append(posN)
+        moves = moves + self.getCastlingMoves(board)
+        return moves
+
+    def getCastlingMoves(self, board: "Board") -> "list[Pos]":
+        if self.hasMoved:
+            return []
+
+        # check if currently in check
+        if board.checked == self.color:
+            return []
+        moves = []
+
+        def checkNonQueenSide():
+            if (
+                board.getPiece(self.pos.move(1, 0)) != None
+                or board.getPiece(self.pos.move(2, 0)) != None
+            ):
+                return
+            rookPos = board.getPiece(self.pos.move(3, 0))
+            if not isinstance(rookPos, Rook):
+                return
+            if rookPos.hasMoved:
+                return
+            newBoard = deepcopy(board)
+            newBoard.overrideMove(self.pos, self.pos.move(1, 0))
+            if newBoard.checked == self.color:
+                return
+            newBoard.overrideMove(self.pos.move(1, 0), self.pos.move(2, 0))
+            if newBoard.checked == self.color:
+                return
+            moves.append(self.pos.move(2, 0))
+
+        def checkQueenSide():
+            if (
+                board.getPiece(self.pos.move(-1, 0)) != None
+                or board.getPiece(self.pos.move(-2, 0)) != None
+                or board.getPiece(self.pos.move(-3, 0)) != None
+            ):
+                return
+            rookPos = board.getPiece(self.pos.move(-4, 0))
+            if not isinstance(rookPos, Rook):
+                return
+            if rookPos.hasMoved:
+                return
+            newBoard = deepcopy(board)
+            newBoard.overrideMove(self.pos, self.pos.move(-1, 0))
+            if newBoard.checked == self.color:
+                return
+            newBoard.overrideMove(self.pos.move(-1, 0), self.pos.move(-2, 0))
+            if newBoard.checked == self.color:
+                return
+            moves.append(self.pos.move(-2, 0))
+
+        checkNonQueenSide()
+        checkQueenSide()
+
         return moves

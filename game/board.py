@@ -13,6 +13,7 @@ class Board:
             [None for _ in range(8)] for _ in range(8)
         ]
         self.deaths: "list[Piece]" = []
+        self.checked: "None| Color" = None
 
         pass
 
@@ -52,29 +53,67 @@ class Board:
         self.createPiece(King, Color.BLACK, 4, 0)
         self.createPiece(King, Color.WHITE, 4, 7)
         self.deaths.clear()
+        self.checked = None
 
-    def movePieceFromTo(self, src: Pos, dest: Pos) -> 'tuple[bool, bool]':
+    def movePieceFromTo(self, src: Pos, dest: Pos) -> "tuple[bool, bool]":
         srcPiece = self.getPiece(src)
         # check in possible moves
         if srcPiece == None:
             return False, False
-        possibleMoves = srcPiece.possibleMoves(self)
-        if dest not in possibleMoves:
+        legalMoves, _ = srcPiece.possibleMoves(self)
+        if dest not in legalMoves:
             return False, False
+        if isinstance(srcPiece, King):
+            if dest != src.move(-1, 0) and dest != src.move(1, 0):
+                if dest == src.move(2, 0):
+                    self.setPiece(srcPiece, dest)
+                    self.removePiece(src)
+                    srcPiece.moveTo(dest)
+
+                    rookPos = src.move(3, 0)
+                    rook: Rook = self.getPiece(rookPos)  # type: ignore
+                    self.setPiece(rook, src.move(1, 0))
+                    self.removePiece(rookPos)
+                    rook.moveTo(src.move(1, 0))
+                if dest == src.move(-2, 0):
+                    self.setPiece(srcPiece, dest)
+                    self.removePiece(src)
+                    srcPiece.moveTo(dest)
+
+                    rookPos = src.move(-4, 0)
+                    rook: Rook = self.getPiece(rookPos)  # type: ignore
+                    self.setPiece(rook, src.move(-1, 0))
+                    self.removePiece(rookPos)
+                    rook.moveTo(src.move(-1, 0))
+                self.updateCheck(srcPiece.color)
+                return True, False
+
         destPiece = self.getPiece(dest)
         if destPiece == None:
             self.setPiece(srcPiece, dest)
             self.removePiece(src)
             srcPiece.moveTo(dest)
+            self.updateCheck(srcPiece.color)
             return True, False
         if destPiece.color != srcPiece.color:
-            isKing = isinstance(destPiece,King)
+            isKing = isinstance(destPiece, King)
             self.killPiece(dest)
             self.setPiece(srcPiece, dest)
             self.removePiece(src)
             srcPiece.moveTo(dest)
+            self.updateCheck(srcPiece.color)
             return True, isKing
         return False, False
+
+    def overrideMove(self, src: Pos, dest: Pos):
+        srcPiece = self.getPiece(src)
+        if srcPiece == None:
+            return
+        self.killPiece(dest)
+        self.setPiece(srcPiece, dest)
+        self.removePiece(src)
+        srcPiece.moveTo(dest)
+        self.updateCheck(srcPiece.color)
 
     def killPiece(self, pos: Pos):
         piece = self.getPiece(pos)
@@ -83,6 +122,8 @@ class Board:
         self.setPiece(None, pos)
 
     def getPiece(self, pos: Pos) -> "Piece|None":
+        if not self.isValidPos(pos):
+            return None
         return self.board[pos.Y][pos.X]
 
     def createPiece(self, Piec, color: Color, i, j) -> None:
@@ -91,9 +132,13 @@ class Board:
         pass
 
     def setPiece(self, piece: "Piece|None", pos: Pos):
+        if not self.isValidPos(pos):
+            return
         self.board[pos.Y][pos.X] = piece
 
     def removePiece(self, pos: Pos):
+        if not self.isValidPos(pos):
+            return
         self.board[pos.Y][pos.X] = None
 
     def __repr__(self) -> str:
@@ -125,7 +170,12 @@ class Board:
         return str(self.board[i][j])
 
     # for pieces classes
+    def isValidPos(self, pos: Pos) -> bool:  # type: ignore
+        return not (pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7)
+
     def canMove(self, pos: Pos) -> bool:
+        if not self.isValidPos(pos):
+            return False
         if pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7:
             return False
         piece = self.getPiece(pos)
@@ -134,7 +184,7 @@ class Board:
         return False
 
     def canKill(self, pos: Pos, color: Color) -> bool:
-        if pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7:
+        if not self.isValidPos(pos):
             return False
         piece = self.getPiece(pos)
         if piece == None:
@@ -147,3 +197,49 @@ class Board:
         if color == Color.BLACK:
             return 1
         return -1
+
+    def getKings(self) -> "tuple[King, King]":
+        blackKing = None
+        whiteKing = None
+        for row in self.board:
+            for piece in row:
+                if piece == None:
+                    continue
+                if not isinstance(piece, King):
+                    continue
+                if piece.color == Color.BLACK:
+                    blackKing = piece
+                if piece.color == Color.WHITE:
+                    whiteKing = piece
+        return blackKing, whiteKing  # type: ignore
+
+    def updateCheck(self, lastMove: Color):
+        # find kings
+        blackKing, whiteKing = self.getKings()
+        selfKing = blackKing if lastMove == Color.BLACK else whiteKing
+        oppKing = whiteKing if lastMove == Color.BLACK else blackKing
+
+        # check if self getting into check
+        for row in self.board:
+            for piece in row:
+                if piece == None:
+                    continue
+                if piece.color == lastMove:
+                    continue
+                legalMoves, _ = piece.possibleMoves(self, depth=0)
+                if selfKing.pos in legalMoves:
+                    self.checked = selfKing.color
+                    return
+
+        # check if opp getting into check
+        for row in self.board:
+            for piece in row:
+                if piece == None:
+                    continue
+                if piece.color != lastMove:
+                    continue
+                legalMoves, _ = piece.possibleMoves(self, depth=0)
+                if oppKing.pos in legalMoves:
+                    self.checked = oppKing.color
+                    return
+        self.checked = None

@@ -58,7 +58,7 @@ def makeMove(inps):
         log("\033[91mNo piece on source position" + "\033[0m")
         return
     if str(srcPis)[0] != turn:
-        log("\033[91mIlligal move " + str(srcPis) + "\033[0m")
+        log("\033[91mIllegal move " + str(srcPis) + "\033[0m")
         return
     to = posFromEncoding(inps[2])
     if to == None:
@@ -66,9 +66,17 @@ def makeMove(inps):
         return
     valid, kingDied = board.movePieceFromTo(frm, to)
     if not valid:
-        log("\033[91mIlligal move")
+        log("\033[91mIllegal move\033[0m")
         return
-    log("\033[94m"+str(srcPis) + " moved from " + inps[1] + " to " + inps[2] + "\033[0m")
+    log(
+        "\033[94m"
+        + str(srcPis)
+        + " moved from "
+        + inps[1]
+        + " to "
+        + inps[2]
+        + "\033[0m"
+    )
     turn = "b" if turn == "w" else "w"
     return kingDied
 
@@ -82,8 +90,10 @@ def givePossibleMoves(inps):
     if piece == None:
         log("\033[91mno piece on " + inps[1] + "\033[0m")
         return
-    possMoves = list(map(endcodingFromPos, piece.possibleMoves(board)))
-    log(str(piece) + " " + str(possMoves))
+    legalMoves, illegalMoves = piece.possibleMoves(board)
+    lMoves = list(map(endcodingFromPos, legalMoves))
+    ilMoves = list(map(endcodingFromPos, illegalMoves))
+    log(str(piece) + " ~ legal:" + str(lMoves) + "\n   illegal:" + str(ilMoves))
 
 
 def showDeaths():
@@ -96,8 +106,9 @@ def help():
 
 def loop():
     while True:
-        print("\033[2J" + "\033[H" + mergeMessages(str(board), logs.lgs()))
-        print(("White" if turn == "w" else "Black") + "'s turn\n> ",end="")
+        print("\033[2J" + "\033[H", end="")
+        print(mergeMessages(str(board), logs.lgs()))
+        print(("White" if turn == "w" else "Black") + "'s turn\n> ", end="")
         inp = input()
         log("\n> " + inp)
         inps = inp.split(" ")
@@ -105,14 +116,14 @@ def loop():
             if turn == "w":
                 log("\033[91mwrong turn" + "\033[0m")
                 continue
-            if(makeMove(inps)):
+            if makeMove(inps):
                 log("\033[92m Black team player won" + "\033[0m")
                 break
         elif inps[0] == "w" or inps[0] == "W":
             if turn == "b":
                 log("\033[91mwrong turn" + "\033[0m")
                 continue
-            if(makeMove(inps)):
+            if makeMove(inps):
                 log("\033[92m White team player won" + "\033[0m")
                 break
         elif inps[0] == "h" or inps[0] == "H":
