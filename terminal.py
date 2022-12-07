@@ -15,6 +15,7 @@ HELP_MESSAGE = """Commands to use game
         > b e2 e3
   > m [piecePos]
                 - give possible moves
+  > d             - show dead pieces
   > h             - help
   > q             - quit"""
 
@@ -57,7 +58,11 @@ def mergeMessages(boardStr: "str", logs: "list[str]"):
     return "\n".join(newMsg)
 
 
-def makeMove(inps):
+def getInput(message: "str") -> "str":
+    return input(message)
+
+
+def makeMove(inps, inputCallback=getInput):
     global turn
     frm = posFromEncoding(inps[1])
     if frm == None:
@@ -74,7 +79,7 @@ def makeMove(inps):
     if to == None:
         log("\033[91minvalid encoding" + "\033[0m")
         return
-    valid, kingDied = board.movePieceFromTo(frm, to)
+    valid, kingDied = board.movePieceFromTo(frm, to, inputCallback)
     if not valid:
         log("\033[91mIllegal move\033[0m")
         return
@@ -121,11 +126,11 @@ def loop():
         print(("White" if turn == "w" else "Black") + "'s turn\n> ", end="")
         if withBot and turn == "b":
             print("Bot thinking...")
-            frm, to = bot.giveMove(board, Color.BLACK)
-            frm, to = endcodingFromPos(frm), endcodingFromPos(to)
+            Frm, To = bot.giveMove(board, Color.BLACK)
+            frm, to = endcodingFromPos(Frm), endcodingFromPos(To)
             inp = "b " + frm + " " + to
             log("\n" + inp)
-            makeMove(inp.split(" "))
+            makeMove(inp.split(" "), bot.giveUpgrade(board, Color.BLACK, (Frm, To)))
             continue
         inp = input()
         log("\n> " + inp)

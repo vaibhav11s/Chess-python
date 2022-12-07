@@ -15,3 +15,9 @@ class RandomBot(Bot):
         pieceMoves = choice(allMoves)
         move = choice(pieceMoves.to)
         return pieceMoves.piece.pos, move
+
+    def giveUpgrade(self, board: "Board", color: "Color", move: "tuple[Pos,Pos]"):
+        def getInput(message: "str") -> "str":
+            return "Q"
+
+        return getInput

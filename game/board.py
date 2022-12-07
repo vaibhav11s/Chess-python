@@ -1,10 +1,19 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from .utils import Pos, Color, UNICODE_PIECE_SYMBOLS as UP
 from .pieces import Pawn, Knight, Bishop, Rook, Queen, King, PossibleMoves
 
 if TYPE_CHECKING:
     from .pieces import Piece
+
+CLASS_MAP: "dict[str, type[Piece]]" = {
+    "P": Pawn,
+    "R": Rook,
+    "N": Knight,
+    "B": Bishop,
+    "Q": Queen,
+    "K": King,
+}
 
 
 class Board:
@@ -55,7 +64,9 @@ class Board:
         self.deaths.clear()
         self.checked = None
 
-    def movePieceFromTo(self, src: Pos, dest: Pos) -> "tuple[bool, bool]":
+    def movePieceFromTo(
+        self, src: "Pos", dest: "Pos", getInput: "Callable[[str],str]"
+    ) -> "tuple[bool, bool]":
         srcPiece = self.getPiece(src)
         # check in possible moves
         if srcPiece == None:
@@ -63,49 +74,98 @@ class Board:
         legalMoves, _ = srcPiece.possibleMoves(self)
         if dest not in legalMoves:
             return False, False
+
+        # Castling
         if isinstance(srcPiece, King):
             if dest == src.move(-2, 0) or dest == src.move(2, 0):
-                if dest == src.move(2, 0):
-                    self.setPiece(srcPiece, dest)
-                    self.removePiece(src)
-                    srcPiece.moveTo(dest)
-
-                    rookPos = src.move(3, 0)
-                    rook: Rook = self.getPiece(rookPos)  # type: ignore
-                    self.setPiece(rook, src.move(1, 0))
-                    self.removePiece(rookPos)
-                    rook.moveTo(src.move(1, 0))
-                if dest == src.move(-2, 0):
-                    self.setPiece(srcPiece, dest)
-                    self.removePiece(src)
-                    srcPiece.moveTo(dest)
-
-                    rookPos = src.move(-4, 0)
-                    rook: Rook = self.getPiece(rookPos)  # type: ignore
-                    self.setPiece(rook, src.move(-1, 0))
-                    self.removePiece(rookPos)
-                    rook.moveTo(src.move(-1, 0))
-                self.updateCheck(srcPiece.color)
+                self.castlingMove(srcPiece, src, dest)
+                if len(self.getAllPossibleMoves(srcPiece.color.GetOpp())) == 0:
+                    return True, True
                 return True, False
 
         destPiece = self.getPiece(dest)
         if destPiece == None:
+            # pawn promotion
+            if self.checkPawnPromotion(srcPiece, dest):
+                return self.pawnPromotionMove(src, dest, getInput)
             self.setPiece(srcPiece, dest)
             self.removePiece(src)
             srcPiece.moveTo(dest)
             self.updateCheck(srcPiece.color)
+            if len(self.getAllPossibleMoves(srcPiece.color.GetOpp())) == 0:
+                return True, True
             return True, False
         if destPiece.color != srcPiece.color:
             isKing = isinstance(destPiece, King)
+            # pawn promotion
+            if not isKing and self.checkPawnPromotion(srcPiece, dest):
+                return self.pawnPromotionMove(src, dest, getInput)
             self.killPiece(dest)
             self.setPiece(srcPiece, dest)
             self.removePiece(src)
             srcPiece.moveTo(dest)
             self.updateCheck(srcPiece.color)
+            if len(self.getAllPossibleMoves(srcPiece.color.GetOpp())) == 0:
+                return True, True
             return True, isKing
         return False, False
 
-    def overrideMove(self, src: Pos, dest: Pos):
+    def castlingMove(self, srcPiece: "Piece", src: "Pos", dest: "Pos"):
+        if dest == src.move(2, 0):
+            self.setPiece(srcPiece, dest)
+            self.removePiece(src)
+            srcPiece.moveTo(dest)
+
+            rookPos = src.move(3, 0)
+            rook: Rook = self.getPiece(rookPos)  # type: ignore
+            self.setPiece(rook, src.move(1, 0))
+            self.removePiece(rookPos)
+            rook.moveTo(src.move(1, 0))
+        if dest == src.move(-2, 0):
+            self.setPiece(srcPiece, dest)
+            self.removePiece(src)
+            srcPiece.moveTo(dest)
+
+            rookPos = src.move(-4, 0)
+            rook: Rook = self.getPiece(rookPos)  # type: ignore
+            self.setPiece(rook, src.move(-1, 0))
+            self.removePiece(rookPos)
+            rook.moveTo(src.move(-1, 0))
+        self.updateCheck(srcPiece.color)
+
+    def checkPawnPromotion(self, srcPiece: "Piece", dest: "Pos"):
+        if not isinstance(srcPiece, Pawn):
+            return False
+        if srcPiece.color == Color.BLACK and dest.Y == 7:
+            return True
+        if srcPiece.color == Color.WHITE and dest.Y == 0:
+            return True
+        return False
+
+    def pawnPromotionMove(
+        self, src: "Pos", dest: "Pos", getInput: "Callable[[str],str]"
+    ) -> "tuple[bool,bool]":
+        selection = None
+        while True:
+            inp = getInput(
+                "Choose what to upgrade - ['r','k','b','q'] - or 'e' to discard move > "
+            ).upper()
+            if inp == "E":
+                return False, False
+            if inp in ["R", "K", "B", "Q"]:
+                selection = inp
+                break
+        srcColor = self.getPiece(src).color  # type: ignore
+        newPiece = CLASS_MAP[selection](dest.X, dest.Y, srcColor)
+        self.killPiece(dest)
+        self.setPiece(newPiece, dest)
+        self.removePiece(src)
+        self.updateCheck(srcColor)
+        if len(self.getAllPossibleMoves(srcColor.GetOpp())) == 0:
+            return True, True
+        return True, False
+
+    def overrideMove(self, src: "Pos", dest: "Pos"):
         srcPiece = self.getPiece(src)
         if srcPiece == None:
             return
@@ -115,28 +175,28 @@ class Board:
         srcPiece.moveTo(dest)
         self.updateCheck(srcPiece.color)
 
-    def killPiece(self, pos: Pos):
+    def killPiece(self, pos: "Pos"):
         piece = self.getPiece(pos)
         if piece != None:
             self.deaths.append(piece)
         self.setPiece(None, pos)
 
-    def getPiece(self, pos: Pos) -> "Piece|None":
+    def getPiece(self, pos: "Pos") -> "Piece|None":
         if not self.isValidPos(pos):
             return None
         return self.board[pos.Y][pos.X]
 
-    def createPiece(self, Piec, color: Color, i, j) -> None:
+    def createPiece(self, Piec: "type[Piece]", color: "Color", i, j) -> None:
         piece = Piec(i, j, color)
         self.board[j][i] = piece
         pass
 
-    def setPiece(self, piece: "Piece|None", pos: Pos):
+    def setPiece(self, piece: "Piece|None", pos: "Pos"):
         if not self.isValidPos(pos):
             return
         self.board[pos.Y][pos.X] = piece
 
-    def removePiece(self, pos: Pos):
+    def removePiece(self, pos: "Pos"):
         if not self.isValidPos(pos):
             return
         self.board[pos.Y][pos.X] = None
@@ -170,20 +230,18 @@ class Board:
         return str(self.board[i][j])
 
     # for pieces classes
-    def isValidPos(self, pos: Pos) -> bool:  # type: ignore
+    def isValidPos(self, pos: "Pos") -> bool:  # type: ignore
         return not (pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7)
 
-    def canMove(self, pos: Pos) -> bool:
+    def canMove(self, pos: "Pos") -> bool:
         if not self.isValidPos(pos):
-            return False
-        if pos.X < 0 or pos.X > 7 or pos.Y < 0 or pos.Y > 7:
             return False
         piece = self.getPiece(pos)
         if piece == None:
             return True
         return False
 
-    def canKill(self, pos: Pos, color: Color) -> bool:
+    def canKill(self, pos: "Pos", color: "Color") -> bool:
         if not self.isValidPos(pos):
             return False
         piece = self.getPiece(pos)
@@ -193,7 +251,7 @@ class Board:
             return True
         return False
 
-    def getDirection(self, color: Color):
+    def getDirection(self, color: "Color"):
         if color == Color.BLACK:
             return 1
         return -1
@@ -213,9 +271,12 @@ class Board:
                     whiteKing = piece
         return blackKing, whiteKing  # type: ignore
 
-    def updateCheck(self, lastMove: Color):
+    def updateCheck(self, lastMove: "Color"):
         # find kings
         blackKing, whiteKing = self.getKings()
+        if blackKing == None or whiteKing == None:
+            self.checked = None
+            return
         selfKing = blackKing if lastMove == Color.BLACK else whiteKing
         oppKing = whiteKing if lastMove == Color.BLACK else blackKing
 
@@ -240,7 +301,7 @@ class Board:
                     return
         self.checked = None
 
-    def getPlayerPieces(self, color: Color) -> "list[Piece]":
+    def getPlayerPieces(self, color: "Color") -> "list[Piece]":
         pieces: "list[Piece]" = []
         for row in self.board:
             for piece in row:
@@ -248,7 +309,7 @@ class Board:
                     pieces.append(piece)
         return pieces
 
-    def getAllPossibleMoves(self, color: Color) -> "list[PossibleMoves]":
+    def getAllPossibleMoves(self, color: "Color") -> "list[PossibleMoves]":
         pieces = self.getPlayerPieces(color)
         possibleMoves: "list[PossibleMoves]" = []
         for piece in pieces:

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class Piece:
-    def __init__(self, x: int, y: int, color: Color) -> None:
+    def __init__(self, x: "int", y: "int", color: "Color") -> "None":
         self.pos = Pos(x, y)
         self.color = color
 
@@ -123,14 +123,14 @@ RookDirections = [
 
 
 class Rook(Piece):
-    def __init__(self, x: int, y: int, color: Color) -> None:
+    def __init__(self, x: "int", y: "int", color: "Color") -> None:
         super().__init__(x, y, color)
         self.hasMoved = False
 
     def __repr__(self) -> str:
         return "bR" if self.color == Color.BLACK else "wR"
 
-    def moveTo(self, pos: Pos):
+    def moveTo(self, pos: "Pos"):
         self.hasMoved = True
         return super().moveTo(pos)
 
@@ -169,7 +169,7 @@ class Queen(Piece):
 
 
 class King(Piece):
-    def __init__(self, x: int, y: int, color: Color) -> None:
+    def __init__(self, x: "int", y: "int", color: "Color") -> None:
         super().__init__(x, y, color)
         self.hasMoved = False
 

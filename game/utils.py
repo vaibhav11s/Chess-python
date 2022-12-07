@@ -21,6 +21,11 @@ class Color(Enum):
     BLACK = 0
     WHITE = 1
 
+    def GetOpp(self) -> "Color":
+        if self == Color.BLACK:
+            return Color.WHITE
+        return Color.BLACK
+
 
 @dataclass
 class Pos:
